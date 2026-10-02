@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Donjon Tactique</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="title">⚔️ Donjon Tactique</div>
+      <div id="level-info"></div>
+      <div id="round-info"></div>
+      <button id="help-btn" title="Règles">?</button>
+    </header>
+    <main>
+      <section id="board-wrap">
+        <canvas id="board"></canvas>
+        <div id="tooltip"></div>
+      </section>
+      <aside id="sidebar">
+        <div class="panel">
+          <h3>⏳ Ordre d'initiative</h3>
+          <ol id="tracker"></ol>
+        </div>
+        <div class="panel grow">
+          <h3>📜 Journal des dés</h3>
+          <div id="log"></div>
+        </div>
+      </aside>
+    </main>
+    <footer id="actionbar"></footer>
+  </div>
+
+  <!-- Écran de départ : choix des classes -->
+  <div id="start-screen" class="overlay">
+    <div class="dialog wide">
+      <h1>⚔️ Donjon Tactique</h1>
+      <p class="muted">Compose ton groupe (jusqu'à 4 héros) et descends dans les 5 niveaux du donjon.</p>
+      <div id="class-grid"></div>
+      <div class="start-row">
+        <span id="party-count"></span>
+        <button id="start-btn" class="primary">Commencer l'aventure ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="end-screen" class="overlay hidden"></div>
+
+  <!-- Aide -->
+  <div id="help" class="overlay hidden">
+    <div class="dialog">
+      <h2>📖 Règles</h2>
+      <ul class="rules">
+        <li><b>Initiative</b> : au début du combat chacun lance 1d20 + Dex. L'ordre est affiché à droite.</li>
+        <li><b>Ton tour</b> : un <b>déplacement</b> (cases bleues, tu peux le fractionner), une <b>action</b> et une <b>action bonus</b>.</li>
+        <li><b>Attaque</b> : 1d20 + bonus ≥ CA de la cible. Un 20 naturel = critique (dés de dégâts doublés), un 1 = échec.</li>
+        <li><b>Distance</b> : une diagonale compte pour 1 case. Les murs bloquent la vue pour les attaques à distance.</li>
+        <li><b>Terrain</b> : les gravats coûtent 2 cases de déplacement, l'eau est infranchissable (mais on voit au travers).</li>
+        <li><b>Inconscient</b> : un héros à 0 PV ne joue plus, mais un soin le relève. Si tout le groupe tombe, c'est perdu.</li>
+        <li><b>Contrôles</b> : clic = se déplacer / cibler · <kbd>1</kbd>–<kbd>5</kbd> = capacités · <kbd>Espace</kbd> = fin du tour · clic droit / <kbd>Échap</kbd> = annuler.</li>
+      </ul>
+      <button class="primary close">Compris !</button>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
