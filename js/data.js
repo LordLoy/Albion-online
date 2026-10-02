@@ -164,7 +164,7 @@ const MONSTERS = {
     attack: { id: 'machoire', name: 'Mâchoire', type: 'attack', range: 1, hit: 6, dmg: '2d8+3' },
   },
   ogre: {
-    name: 'Ogre', icon: '🧌', sprite: 'ogre', color: '#8a5a2e', hp: 95, ac: 13, speed: 5, dex: -1, boss: true, xp: 40, gold: 60,
+    name: 'Ogre', icon: '🧌', sprite: 'ogre', color: '#8a5a2e', hp: 85, ac: 13, speed: 5, dex: -1, boss: true, xp: 40, gold: 60,
     attack: { id: 'massue', name: 'Massue géante', type: 'attack', range: 1, hit: 7, dmg: '2d8+5',
       onHit: { status: 'stun', turns: 1, chance: 0.3 } },
   },
@@ -194,7 +194,7 @@ const ACTS = [
     pool: [['gobelin', 1], ['archer', 1], ['loup', 1.5], ['squelette', 1.5], ['chaman', 2]],
     budget: row => 4.5 + row * 0.75,
     elites: ['orc', 'loup', 'squelette'],
-    boss: { name: "L'Ogre des Cryptes", monsters: ['ogre', 'orc', 'gobelin', 'gobelin', 'archer', 'chaman'] },
+    boss: { name: "L'Ogre des Cryptes", monsters: ['ogre', 'gobelin', 'gobelin', 'archer', 'chaman'] },
   },
   {
     name: 'Les Profondeurs', rows: 7,
@@ -206,7 +206,7 @@ const ACTS = [
 ];
 
 // Expérience totale nécessaire pour chaque niveau (index = niveau)
-const LEVEL_XP = [0, 0, 20, 48, 85, 130, 190, 260, 340, 430];
+const LEVEL_XP = [0, 0, 16, 40, 72, 112, 165, 230, 305, 390];
 
 // ---------------------------------------------------------------------------
 // Types de salles sur la carte de parcours
