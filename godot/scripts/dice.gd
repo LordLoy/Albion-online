@@ -4,8 +4,12 @@ class_name Dice
 static var _regex := RegEx.create_from_string("^(\\d+)d(\\d+)([+-]\\d+)?$")
 
 
+## Dés truqués (mode dieu) : 0 = normal, sinon le d20 donne toujours cette valeur.
+static var forced_d20 := 0
+
+
 static func d20() -> int:
-	return randi_range(1, 20)
+	return forced_d20 if forced_d20 > 0 else randi_range(1, 20)
 
 
 ## Lance une formule « XdY+Z ». Un critique double le nombre de dés.

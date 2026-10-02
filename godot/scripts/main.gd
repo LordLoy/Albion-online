@@ -5,11 +5,13 @@ extends Node
 ##   godot -- --autoplay   : les héros jouent tout seuls
 ##   godot -- --fast       : animations instantanées
 ##   godot -- --start      : passe l'écran de départ (groupe par défaut)
+##   godot -- --god        : ouvre le panneau du mode dieu au démarrage
 ##   godot -- --shot=capture.png  : enregistre une capture d'écran après 4 secondes puis quitte
 
 var combat := Combat.new()
 var board := Board.new()
 var hud := Hud.new()
+var god_panel := GodPanel.new()
 var screen_layer := CanvasLayer.new()
 var heroes: Array[Unit] = []
 var autoplay := false
@@ -27,6 +29,11 @@ func _ready() -> void:
 	var ui_layer := CanvasLayer.new()
 	add_child(ui_layer)
 	ui_layer.add_child(hud)
+	god_panel.combat = combat
+	god_panel.visible = false
+	god_panel.position = Vector2(12, Hud.TOP_H + 12)
+	god_panel.goto_level.connect(func(i): _start_level(i))
+	ui_layer.add_child(god_panel)
 	screen_layer.layer = 2
 	add_child(screen_layer)
 
@@ -46,6 +53,9 @@ func _ready() -> void:
 		_start(["guerrier", "mage", "rodeur", "clerc"])
 	else:
 		_show_start_screen()
+	god_panel.visible = "--god" in args
+	if god_panel.visible:
+		_relayout.call_deferred()
 	for a in args:
 		if a.begins_with("--shot="):
 			_screenshot(a.trim_prefix("--shot="))
@@ -58,8 +68,17 @@ func _screenshot(path: String) -> void:
 	get_tree().quit()
 
 
+## Zone du plateau : on laisse la place au panneau du mode dieu s'il est ouvert
+func _board_area() -> Rect2:
+	var area := hud.board_area()
+	if god_panel.visible:
+		var w := god_panel.size.x + 12
+		area = Rect2(area.position + Vector2(w, 0), area.size - Vector2(w, 0))
+	return area
+
+
 func _relayout() -> void:
-	board.set_meta("area", hud.board_area())
+	board.set_meta("area", _board_area())
 	board.layout()
 
 
@@ -69,7 +88,13 @@ func _on_changed() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.pressed) or screen_layer.get_child_count() > 0:
+	if not (event is InputEventKey and event.pressed):
+		return
+	if event.keycode == KEY_F1 and combat.dungeon:
+		god_panel.visible = not god_panel.visible
+		_relayout()
+		return
+	if screen_layer.get_child_count() > 0:
 		return
 	match event.keycode:
 		KEY_SPACE, KEY_ENTER:
@@ -93,7 +118,8 @@ func _start(keys: Array) -> void:
 
 
 func _start_level(index: int) -> void:
-	board.set_meta("area", hud.board_area())
+	_clear_screen()
+	board.set_meta("area", _board_area())
 	combat.start_level(heroes, index)
 
 

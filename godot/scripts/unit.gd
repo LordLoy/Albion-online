@@ -61,6 +61,8 @@ static func make_monster(monster_key: String, number := 0, bonus_hp := 0) -> Uni
 	u.boss = m.get("boss", false)
 	u.attack = m.attack
 	u.heal_ab = m.get("heal", {})
+	# Capacités utilisables quand un humain contrôle le monstre (mode dieu / futur mode MJ)
+	u.abilities = [u.attack] + ([u.heal_ab] if not u.heal_ab.is_empty() else [])
 	return u
 
 

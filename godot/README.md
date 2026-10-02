@@ -20,6 +20,17 @@ Au premier lancement, Godot met quelques secondes à importer les images : c'est
 | Annuler le ciblage | Clic droit ou `Échap` |
 | Fin du tour | Bouton ou `Espace` |
 
+## Mode dieu (F1)
+
+Appuie sur **F1** pendant un combat pour ouvrir le panneau de test :
+
+- **Héros invincibles**, **actions illimitées** (plus de recharge, déplacement infini), **je contrôle les monstres**
+  (c'est toi qui joues leurs tours, comme un MJ)
+- **Dés truqués** : d20 normal, toujours 20 ou toujours 1
+- **Vitesse des animations** : normale, rapide ou instantanée
+- **Outils à clic** : déplacer n'importe quel jeton, foudroyer ou soigner une unité, faire apparaître un monstre
+- **Actions** : tuer tous les monstres, soigner le groupe, monter le groupe de niveau, aller directement à un niveau
+
 ## Comment le code est organisé
 
 | Fichier | Rôle |
@@ -31,6 +42,7 @@ Au premier lancement, Godot met quelques secondes à importer les images : c'est
 | `scripts/combat.gd` | Les règles : tours, initiative, attaques, sorts, IA des monstres |
 | `scripts/board.gd` | Le plateau : dessin des cases, des jetons, des effets, la souris |
 | `scripts/hud.gd` | L'interface : initiative, journal, barre d'actions |
+| `scripts/god_panel.gd` | Le panneau du mode dieu (les outils eux-mêmes sont en bas de `combat.gd`) |
 | `scripts/main.gd` | Le chef d'orchestre : écran de départ, enchaînement des niveaux |
 | `assets/sprites/` | Les personnages (images 16×16, remplaçables par tes propres images) |
 | `assets/tiles/` | Les sols, murs, eau, gravats (16×16) |
@@ -54,4 +66,6 @@ le MJ héberge la partie et contrôle les monstres, chaque joueur contrôle son 
 ## Options de lancement (pour les tests)
 
 Dans un terminal : `godot --path godot -- --autoplay --fast` fait jouer les héros tout seuls à toute vitesse.
-`--start` passe l'écran de départ, `--shot=capture.png` enregistre une capture d'écran.
+`--start` passe l'écran de départ, `--god` ouvre le mode dieu, `--shot=capture.png` enregistre une capture d'écran.
+
+Test automatique du mode dieu : `godot --headless --path godot res://tests/god_test.tscn`

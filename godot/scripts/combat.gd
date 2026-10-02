@@ -31,6 +31,24 @@ var speed_factor := 1.0    ## accélère les animations (0 = instantané)
 
 var board: Node            ## le plateau (animations)
 
+## Mode dieu (outils de test) — voir la section « Mode dieu » en bas du fichier
+var god := {
+	"invincible": false,       ## les héros ne prennent aucun dégât
+	"free_actions": false,     ## actions, recharges et déplacements illimités
+	"control_monsters": false, ## c'est toi qui joues les monstres
+}
+var god_tool := ""         ## outil à clic : "spawn:<monstre>", "move", "kill", "heal", ou ""
+var god_selected: Unit = null
+
+
+## Vrai si c'est un humain (et non l'IA) qui joue cette unité
+func is_player_controlled(u: Unit) -> bool:
+	if u == null:
+		return false
+	if u.side == "hero":
+		return not autoplay
+	return god.control_monsters
+
 
 func current() -> Unit:
 	return order[turn_idx] if turn_idx < order.size() else null
@@ -135,13 +153,13 @@ func _begin_turn() -> void:
 		log_added.emit("[color=#9a92a3]%s est inconscient et passe son tour.[/color]" % u.name)
 		_end_turn()
 		return
-	u.moves_left = u.speed
+	u.moves_left = 99 if god.free_actions else u.speed
 	u.action_used = false
 	u.bonus_used = false
 	for k in u.cooldowns:
 		u.cooldowns[k] = maxi(0, u.cooldowns[k] - 1)
 	ability = {}
-	if u.side == "hero" and not autoplay:
+	if is_player_controlled(u):
 		busy = false
 		_refresh_reach()
 		changed.emit()
@@ -170,7 +188,7 @@ func _end_turn() -> void:
 
 func _refresh_reach() -> void:
 	var u := current()
-	reach = dungeon.compute_reach(u, units, u.moves_left) if u and u.side == "hero" else {}
+	reach = dungeon.compute_reach(u, units, u.moves_left) if is_player_controlled(u) else {}
 
 
 ## Retourne true si le combat est terminé
@@ -204,6 +222,8 @@ func perform(action: Dictionary) -> void:
 			if unit_at(action.to) == null and reach.dist[i] <= u.moves_left and i != reach.start:
 				busy = true
 				await _move_along(u, Dungeon.path_to(reach, i))
+				if god.free_actions:
+					u.moves_left = 99
 				busy = false
 				_refresh_reach()
 				changed.emit()
@@ -217,8 +237,11 @@ func perform(action: Dictionary) -> void:
 
 ## Clic sur une case (appelé par le plateau)
 func click_cell(c: Vector2i) -> void:
+	if god_tool != "" and not busy and not over:
+		_god_click(c)
+		return
 	var u := current()
-	if busy or over or u == null or u.side != "hero":
+	if busy or over or not is_player_controlled(u):
 		return
 	if not ability.is_empty():
 		if is_valid_target(u, ability, c):
@@ -233,7 +256,7 @@ func click_cell(c: Vector2i) -> void:
 ## Bouton de capacité (appelé par l'interface)
 func select_ability(index: int) -> void:
 	var u := current()
-	if busy or over or u == null or u.side != "hero" or index >= u.abilities.size():
+	if busy or over or not is_player_controlled(u) or index >= u.abilities.size():
 		return
 	var ab: Dictionary = u.abilities[index]
 	if not ability_ready(u, ab):
@@ -256,7 +279,7 @@ func cancel_targeting() -> void:
 
 func end_hero_turn() -> void:
 	var u := current()
-	if not busy and not over and u and u.side == "hero":
+	if not busy and not over and is_player_controlled(u):
 		perform({"type": "end_turn"})
 
 
@@ -264,6 +287,8 @@ func end_hero_turn() -> void:
 # Règles des capacités
 # ---------------------------------------------------------------------------
 func ability_ready(u: Unit, ab: Dictionary) -> bool:
+	if god.free_actions and is_player_controlled(u):
+		return true
 	if u.cooldowns.get(ab.id, 0) > 0:
 		return false
 	return not u.bonus_used if ab.get("bonus", false) else not u.action_used
@@ -404,8 +429,10 @@ func use_ability(u: Unit, ab: Dictionary, c: Vector2i) -> void:
 	changed.emit()
 	if await _check_end():
 		return
-	if u.side == "hero" and not autoplay:
+	if is_player_controlled(u) and current() == u:
 		busy = false
+		if god.free_actions:
+			u.moves_left = 99
 		_refresh_reach()
 		changed.emit()
 
@@ -434,6 +461,9 @@ func _resolve_attack(u: Unit, t: Unit, ab: Dictionary) -> void:
 
 
 func _deal_damage(t: Unit, amount: int, crit := false) -> void:
+	if god.invincible and t.side == "hero":
+		_floater(t, "Invincible", Color("#ffd23f"))
+		return
 	t.hp = maxi(0, t.hp - amount)
 	_floater(t, ("CRIT -%d" if crit else "-%d") % amount, Color("#ffd23f") if crit else Color("#ff5b5b"))
 	if board:
@@ -633,3 +663,85 @@ func _approach(u: Unit) -> void:
 			goal = i
 	if goal >= 0 and goal != full.start:
 		await _advance(u, full, goal)
+
+
+# ---------------------------------------------------------------------------
+# Mode dieu : outils pour tout tester (panneau ouvert avec F1)
+# ---------------------------------------------------------------------------
+func set_god_option(option: String, value: bool) -> void:
+	god[option] = value
+	var u := current()
+	if option == "free_actions" and value and u and is_player_controlled(u):
+		u.moves_left = 99
+	# Si on prend le contrôle des monstres pendant le tour d'un héros, rien ne change tout de suite :
+	# le prochain tour de monstre sera joué à la main.
+	if not busy:
+		_refresh_reach()
+	changed.emit()
+
+
+func _god_click(c: Vector2i) -> void:
+	var t := unit_at(c)
+	match god_tool:
+		"kill":
+			if t:
+				log_added.emit("[color=#c86bff]⚡ Mode dieu : %s est foudroyé.[/color]" % t.name)
+				_deal_damage(t, 9999)
+				_check_end()
+		"heal":
+			if t:
+				_heal_unit(t, t.max_hp)
+		"move":
+			if god_selected == null:
+				god_selected = t
+			elif t == null and dungeon.walkable(c):
+				god_selected.pos = c
+				if board:
+					board.snap(god_selected)
+				god_selected = null
+				_refresh_reach()
+			else:
+				god_selected = t
+		_:
+			if god_tool.begins_with("spawn:") and t == null and dungeon.walkable(c):
+				god_spawn(god_tool.trim_prefix("spawn:"), c)
+	changed.emit()
+
+
+func god_spawn(key: String, c: Vector2i) -> void:
+	var m := Unit.make_monster(key, 0, level_idx * 2)
+	m.pos = c
+	m.init = current().init - 0.001 if current() else 0.0
+	units.append(m)
+	order.insert(turn_idx + 1, m)   # il jouera juste après l'unité en cours
+	if board:
+		board.add_unit(m)
+	log_added.emit("[color=#c86bff]⚡ Mode dieu : un %s apparaît.[/color]" % m.name)
+
+
+func god_kill_all_monsters() -> void:
+	if busy or over:
+		return
+	for u in units:
+		if u.side == "monster" and u.is_alive():
+			u.hp = 0
+			u.dead = true
+	log_added.emit("[color=#c86bff]⚡ Mode dieu : tous les monstres sont foudroyés.[/color]")
+	changed.emit()
+	_check_end()
+
+
+func god_heal_party() -> void:
+	for h in heroes:
+		h.hp = h.max_hp
+	log_added.emit("[color=#c86bff]⚡ Mode dieu : le groupe est entièrement soigné.[/color]")
+	changed.emit()
+
+
+func god_level_up() -> void:
+	for h in heroes:
+		h.level += 1
+		h.max_hp += Data.CLASSES[h.key].hp_lvl
+		h.hp = h.max_hp
+	log_added.emit("[color=#c86bff]⚡ Mode dieu : le groupe passe au niveau %d.[/color]" % heroes[0].level)
+	changed.emit()

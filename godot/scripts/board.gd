@@ -42,6 +42,16 @@ func setup(c: Combat) -> void:
 	layout()
 
 
+## Ajoute le jeton d'une unité apparue en cours de combat
+func add_unit(u: Unit) -> void:
+	var s := Sprite2D.new()
+	s.texture = load("res://assets/sprites/%s.png" % u.sprite)
+	_units_layer.add_child(s)
+	sprites[u.id] = s
+	snap(u)
+	boom(u.pos, 0, Color("#c86bff"))
+
+
 ## Calcule la taille des cases selon la place disponible et centre le plateau.
 func layout() -> void:
 	if combat == null:
@@ -196,7 +206,9 @@ func _cell_rect(c: Vector2i, fill: Color, border := Color.TRANSPARENT) -> void:
 
 func _draw_highlights() -> void:
 	var u := combat.current()
-	if u == null or u.side != "hero" or combat.busy or combat.over or combat.autoplay:
+	if combat.god_selected:
+		_cell_rect(combat.god_selected.pos, Color(0.78, 0.42, 1, 0.35), Color(0.78, 0.42, 1))
+	if not combat.is_player_controlled(u) or combat.busy or combat.over:
 		return
 	var m := combat.dungeon
 	var pulse := 0.5 + 0.5 * sin(_time * 4)

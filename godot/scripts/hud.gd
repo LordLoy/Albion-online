@@ -76,6 +76,7 @@ func _build_top() -> void:
 	level_label = label("", 15)
 	level_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(level_label)
+	row.add_child(label("F1 : mode dieu", 13, COL_MUTED))
 	round_label = label("", 15, COL_GOLD)
 	row.add_child(round_label)
 
@@ -210,7 +211,7 @@ func _update_actions() -> void:
 	portrait.add_theme_stylebox_override("panel", style(Color("#15131a"), COL_HERO if u.side == "hero" else COL_MONSTER, 8, 4))
 	portrait.add_child(_sprite_rect(u.sprite, 56))
 	action_box.add_child(portrait)
-	if u.side != "hero" or combat.autoplay:
+	if not combat.is_player_controlled(u):
 		action_box.add_child(label("Tour de %s…" % u.name, 18, COL_MUTED))
 		return
 	var info := VBoxContainer.new()
@@ -227,7 +228,7 @@ func _update_actions() -> void:
 		b.custom_minimum_size = Vector2(110, 64)
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.disabled = not combat.ability_ready(u, ab)
-		b.tooltip_text = "%s\n%s\n%s" % [ab.name, ab.desc, _ability_tags(u, ab)]
+		b.tooltip_text = "%s\n%s\n%s" % [ab.name, ab.get("desc", ""), _ability_tags(u, ab)]
 		var selected := combat.ability == ab
 		b.add_theme_stylebox_override("normal", style(Color("#3d2a22") if selected else COL_PANEL2, Color("#ff8040") if selected else COL_BORDER, 8, 6))
 		b.add_theme_stylebox_override("hover", style(COL_PANEL2, COL_GOLD, 8, 6))
