@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Donjon Tactique</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,12 +18,15 @@
     </header>
     <main>
       <section id="board-wrap">
-        <canvas id="board"></canvas>
+        <div id="board-stack">
+          <canvas id="board"></canvas>
+          <canvas id="fx"></canvas>
+        </div>
         <div id="tooltip"></div>
       </section>
       <aside id="sidebar">
         <div class="panel">
-          <h3>⏳ Ordre d'initiative</h3>
+          <h3>⏳ Initiative</h3>
           <ol id="tracker"></ol>
         </div>
         <div class="panel grow">
@@ -33,33 +38,37 @@
     <footer id="actionbar"></footer>
   </div>
 
+  <!-- Écrans de la partie (carte, récompenses, boutique…) -->
+  <div id="screen" class="overlay hidden"></div>
+
   <!-- Écran de départ : choix des classes -->
   <div id="start-screen" class="overlay">
     <div class="dialog wide">
       <h1>⚔️ Donjon Tactique</h1>
-      <p class="muted">Compose ton groupe (jusqu'à 4 héros) et descends dans les 5 niveaux du donjon.</p>
+      <p class="muted">Un roguelike tactique au tour par tour. Compose ton groupe (jusqu'à 4 héros), traverse 2 actes et terrasse leurs boss.
+        Si tout le groupe tombe, la partie est perdue.</p>
       <div id="class-grid"></div>
       <div class="start-row">
+        <span id="best-run" class="muted"></span>
         <span id="party-count"></span>
         <button id="start-btn" class="primary">Commencer l'aventure ▶</button>
       </div>
     </div>
   </div>
 
-  <div id="end-screen" class="overlay hidden"></div>
-
   <!-- Aide -->
   <div id="help" class="overlay hidden">
     <div class="dialog">
       <h2>📖 Règles</h2>
       <ul class="rules">
-        <li><b>Initiative</b> : au début du combat chacun lance 1d20 + Dex. L'ordre est affiché à droite.</li>
-        <li><b>Ton tour</b> : un <b>déplacement</b> (cases bleues, tu peux le fractionner), une <b>action</b> et une <b>action bonus</b>.</li>
+        <li><b>La partie</b> : sur la carte, choisis ta route salle après salle : combats, élites, trésors, marchand, feu de camp, événements… jusqu'au boss. Les PV ne remontent pas tout seuls entre les combats !</li>
+        <li><b>Exploration</b> : le donjon est plongé dans le noir. Les monstres dorment (💤) jusqu'à ce qu'ils vous voient. Il faut tous les vaincre pour finir la salle.</li>
+        <li><b>Ton tour</b> : un <b>déplacement</b> (cases bleues, fractionnable), une <b>action</b> et une <b>action bonus</b>. Les potions sont dans la barre d'actions.</li>
         <li><b>Attaque</b> : 1d20 + bonus ≥ CA de la cible. Un 20 naturel = critique (dés de dégâts doublés), un 1 = échec.</li>
-        <li><b>Distance</b> : une diagonale compte pour 1 case. Les murs bloquent la vue pour les attaques à distance.</li>
-        <li><b>Terrain</b> : les gravats coûtent 2 cases de déplacement, l'eau est infranchissable (mais on voit au travers).</li>
-        <li><b>Inconscient</b> : un héros à 0 PV ne joue plus, mais un soin le relève. Si tout le groupe tombe, c'est perdu.</li>
-        <li><b>Contrôles</b> : clic = se déplacer / cibler · <kbd>1</kbd>–<kbd>5</kbd> = capacités · <kbd>Espace</kbd> = fin du tour · clic droit / <kbd>Échap</kbd> = annuler.</li>
+        <li><b>États</b> : 🟢 poison (3/tour), 🔥 brûlure (1d6/tour), 🧊 ralenti (vitesse ÷2), 💫 étourdi (perd son tour).</li>
+        <li><b>Terrain</b> : gravats = 2 cases de déplacement, eau infranchissable (mais on voit au travers), les murs bloquent la vue.</li>
+        <li><b>Progression</b> : l'XP fait monter tout le groupe de niveau ; chaque héros choisit alors un talent. Les objets se portent par un héros.</li>
+        <li><b>Contrôles</b> : clic = se déplacer / cibler · <kbd>1</kbd>–<kbd>9</kbd> = capacités · <kbd>Espace</kbd> = fin du tour · clic droit / <kbd>Échap</kbd> = annuler.</li>
       </ul>
       <button class="primary close">Compris !</button>
     </div>
@@ -67,7 +76,9 @@
 
   <script src="js/data.js"></script>
   <script src="js/engine.js"></script>
+  <script src="js/sprites.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/run.js"></script>
   <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
 </body>

@@ -53,59 +53,101 @@ class GameMap {
   cost(x, y) { return this.get(x, y) === TILE.RUBBLE ? 2 : 1; }
 }
 
-function generateMap(w, h) {
-  for (let attempt = 0; attempt < 100; attempt++) {
+// Donjon en salles reliées par des couloirs
+function generateDungeon(w, h) {
+  for (let attempt = 0; attempt < 200; attempt++) {
     const m = new GameMap(w, h);
-    for (let x = 0; x < w; x++) { m.set(x, 0, TILE.WALL); m.set(x, h - 1, TILE.WALL); }
-    for (let y = 0; y < h; y++) { m.set(0, y, TILE.WALL); m.set(w - 1, y, TILE.WALL); }
+    m.t.fill(TILE.WALL);
+    const rooms = [];
+    for (let tries = 0; tries < 300 && rooms.length < 8; tries++) {
+      const rw = 4 + rand(4), rh = 3 + rand(3);
+      const x = 1 + rand(w - rw - 2), y = 1 + rand(h - rh - 2);
+      const r = { x, y, w: rw, h: rh, cx: x + (rw >> 1), cy: y + (rh >> 1) };
+      if (rooms.some(o => x <= o.x + o.w + 1 && x + rw + 1 >= o.x && y <= o.y + o.h + 1 && y + rh + 1 >= o.y)) continue;
+      rooms.push(r);
+    }
+    if (rooms.length < 5) continue;
+    rooms.sort((a, b) => a.cx - b.cx);
+    for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) m.set(x, y, TILE.FLOOR);
 
-    // Murs en segments
-    const segs = 5 + rand(4);
-    for (let s = 0; s < segs; s++) {
-      const horiz = Math.random() < 0.5, len = 2 + rand(4);
-      const x0 = 4 + rand(w - 8), y0 = 1 + rand(h - 2);
-      for (let i = 0; i < len; i++) m.set(x0 + (horiz ? i : 0), y0 + (horiz ? 0 : i), TILE.WALL);
+    const carve = (a, b) => {
+      const wide = Math.random() < 0.35;
+      let x = a.cx, y = a.cy;
+      const horizFirst = Math.random() < 0.5;
+      const dig = (x, y) => { if (m.get(x, y) === TILE.WALL && x > 0 && y > 0 && x < w - 1 && y < h - 1) m.set(x, y, TILE.FLOOR); };
+      const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); dig(x, y); if (wide) dig(x, y + 1); } };
+      const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); dig(x, y); if (wide) dig(x + 1, y); } };
+      if (horizFirst) { stepX(); stepY(); } else { stepY(); stepX(); }
+    };
+    for (let i = 1; i < rooms.length; i++) carve(rooms[i - 1], rooms[i]);
+    for (let k = 0; k < 2; k++) { // boucles
+      const a = rooms[rand(rooms.length)], b = rooms[rand(rooms.length)];
+      if (a !== b) carve(a, b);
     }
-    // Piliers 2×2
-    const pillars = 2 + rand(3);
-    for (let p = 0; p < pillars; p++) {
-      const x = 4 + rand(w - 9), y = 2 + rand(h - 5);
-      m.set(x, y, TILE.WALL); m.set(x + 1, y, TILE.WALL); m.set(x, y + 1, TILE.WALL); m.set(x + 1, y + 1, TILE.WALL);
-    }
-    // Bassins d'eau (bloquent le passage mais pas la vue)
-    const pools = rand(3);
-    for (let p = 0; p < pools; p++) {
-      const cx = 5 + rand(w - 10), cy = 2 + rand(h - 4);
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        if (m.get(cx + dx, cy + dy) === TILE.FLOOR && (dx === 0 && dy === 0 || Math.random() < 0.6)) m.set(cx + dx, cy + dy, TILE.WATER);
+
+    // Décor dans les grandes salles
+    for (const r of rooms.slice(1)) {
+      const roll = Math.random();
+      if (r.w >= 6 && r.h >= 5 && roll < 0.3) { // piliers
+        m.set(r.x + 1, r.y + 1, TILE.WALL); m.set(r.x + r.w - 2, r.y + r.h - 2, TILE.WALL);
+      } else if (r.w >= 5 && r.h >= 4 && roll < 0.5) { // bassin
+        m.set(r.cx, r.cy, TILE.WATER);
+        if (Math.random() < 0.6) m.set(r.cx + 1, r.cy, TILE.WATER);
+      }
+      for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+        if (m.get(x, y) === TILE.FLOOR && Math.random() < 0.08) m.set(x, y, TILE.RUBBLE);
       }
     }
-    // Gravats (terrain difficile : coûte 2 cases)
-    for (let y = 1; y < h - 1; y++) for (let x = 3; x < w - 3; x++) {
-      if (m.get(x, y) === TILE.FLOOR && Math.random() < 0.09) m.set(x, y, TILE.RUBBLE);
-    }
-    // Zones de départ dégagées
-    for (let y = 1; y < h - 1; y++) for (const x of [1, 2, w - 3, w - 2]) m.set(x, y, TILE.FLOOR);
 
-    // Connectivité : tout ce qui n'est pas atteignable depuis la gauche devient un mur
+    // Vérifier la connectivité de toutes les salles
     const seen = new Array(w * h).fill(false);
-    const stack = [m.idx(1, 1)]; seen[stack[0]] = true;
+    const stack = [m.idx(rooms[0].cx, rooms[0].cy)];
+    if (!m.walkable(rooms[0].cx, rooms[0].cy)) continue;
+    seen[stack[0]] = true;
     while (stack.length) {
       const i = stack.pop(), x = i % w, y = (i / w) | 0;
       for (const [dx, dy] of DIRS.slice(0, 4)) {
         const nx = x + dx, ny = y + dy, ni = m.idx(nx, ny);
-        if (m.walkable(nx, ny) && !seen[ni]) { seen[ni] = true; stack.push(ni); }
+        if (m.inside(nx, ny) && m.walkable(nx, ny) && !seen[ni]) { seen[ni] = true; stack.push(ni); }
       }
     }
-    let ok = true;
-    for (let y = 1; y < h - 1; y++) if (!seen[m.idx(w - 2, y)]) ok = false;
-    if (!ok) continue;
-    for (let i = 0; i < w * h; i++) {
-      if (!seen[i] && (m.t[i] === TILE.FLOOR || m.t[i] === TILE.RUBBLE)) m.t[i] = TILE.WALL;
+    const roomCells = r => {
+      const cells = [];
+      for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (m.walkable(x, y) && seen[m.idx(x, y)]) cells.push([x, y]);
+      return cells;
+    };
+    if (rooms.some(r => roomCells(r).length < 4)) continue;
+    for (let i = 0; i < w * h; i++) if (!seen[i] && m.walkable(i % w, (i / w) | 0)) m.t[i] = TILE.WALL;
+
+    // Torches sur les murs dont la case du dessous est du sol
+    m.torches = [];
+    for (const r of rooms) {
+      const n = 1 + rand(2);
+      for (let k = 0; k < n; k++) {
+        const x = r.x + rand(r.w), y = r.y - 1;
+        if (m.get(x, y) === TILE.WALL && m.walkable(x, y + 1) && !m.torches.some(t => t.x === x && t.y === y)) m.torches.push({ x, y });
+      }
     }
+    m.rooms = rooms.map(r => ({ ...r, cells: roomCells(r) }));
     return m;
   }
-  throw new Error('Impossible de générer une carte');
+  throw new Error('Impossible de générer un donjon');
+}
+
+// Champ de vision : cases visibles depuis une liste de points
+function computeFOV(map, eyes, radius) {
+  const vis = new Uint8Array(map.w * map.h);
+  for (const e of eyes) {
+    for (let y = Math.max(0, e.y - radius); y <= Math.min(map.h - 1, e.y + radius); y++) {
+      for (let x = Math.max(0, e.x - radius); x <= Math.min(map.w - 1, e.x + radius); x++) {
+        const i = map.idx(x, y);
+        if (vis[i]) continue;
+        if ((x - e.x) ** 2 + (y - e.y) ** 2 > radius * radius + 1) continue;
+        if (hasLOS(map, e.x, e.y, x, y)) vis[i] = 1;
+      }
+    }
+  }
+  return vis;
 }
 
 // --- Géométrie --------------------------------------------------------------
@@ -126,7 +168,7 @@ function hasLOS(map, ax, ay, bx, by) {
 
 // Dijkstra : coût de déplacement depuis la position d'une unité.
 // On peut traverser les alliés mais pas les ennemis.
-function computeReach(unit, units, map, maxCost = Infinity) {
+function computeReach(unit, units, map, maxCost = Infinity, allowed = null) {
   const N = map.w * map.h;
   const d = new Array(N).fill(Infinity), prev = new Array(N).fill(-1), done = new Array(N).fill(false);
   const blocked = new Set();
@@ -142,6 +184,7 @@ function computeReach(unit, units, map, maxCost = Infinity) {
     for (const [dx, dy] of DIRS) {
       const nx = bx + dx, ny = by + dy;
       if (!map.walkable(nx, ny)) continue;
+      if (allowed && !allowed[map.idx(nx, ny)]) continue;
       if (dx && dy && (!map.walkable(bx + dx, by) || !map.walkable(bx, by + dy))) continue; // pas de coupe de coin
       const ni = map.idx(nx, ny);
       if (blocked.has(ni)) continue;
