@@ -2,9 +2,8 @@ class_name GodPanel
 extends PanelContainer
 ## Le panneau du mode dieu (F1) : tout ce qu'il faut pour tester le jeu librement.
 
-signal goto_level(index: int)   ## demande au chef d'orchestre de lancer un niveau
-
 var combat: Combat
+var main                         ## le chef d'orchestre (main.gd)
 var _tool_buttons := {}
 var _monster_pick: OptionButton
 var _info: Label
@@ -62,27 +61,44 @@ func _ready() -> void:
 	_monster_pick.item_selected.connect(func(_i): _select_tool("spawn"))
 	col.add_child(_monster_pick)
 
-	_section(col, "Actions")
+	_section(col, "Combat")
 	col.add_child(_action("Tuer tous les monstres", func(): combat.god_kill_all_monsters()))
 	col.add_child(_action("Soigner le groupe", func(): combat.god_heal_party()))
-	col.add_child(_action("Groupe +1 niveau", func(): combat.god_level_up()))
-	var levels := HBoxContainer.new()
-	levels.add_child(Hud.label("Niveau :", 13, Hud.COL_MUTED))
-	for i in Data.LEVELS.size():
-		var b := Button.new()
-		b.text = str(i + 1)
-		b.tooltip_text = Data.LEVELS[i].name
-		b.pressed.connect(func():
-			if not combat.busy:
-				goto_level.emit(i))
-		levels.add_child(b)
-	col.add_child(levels)
+
+	_section(col, "Partie")
+	var r1 := HBoxContainer.new()
+	r1.add_child(_action("+100 or", func(): main.run.gold += 100; _changed()))
+	r1.add_child(_action("+1 niveau", func(): main.run.gain_xp(Data.LEVEL_XP[mini(main.run.level + 1, Data.LEVEL_XP.size() - 1)] - main.run.xp); _changed()))
+	col.add_child(r1)
+	var r2 := HBoxContainer.new()
+	r2.add_child(_action("Objet", func(): main.run.queue.append({"type": "item", "item": main.run.random_items(1)[0]}); _changed()))
+	r2.add_child(_action("Potions", func():
+		for k in Data.POTIONS:
+			main.run.add_potion(k)
+		_changed()))
+	col.add_child(r2)
+	var acts := HBoxContainer.new()
+	acts.add_child(Hud.label("Acte :", 13, Hud.COL_MUTED))
+	for i in Data.ACTS.size():
+		acts.add_child(_action(str(i + 1), func(): main.god_goto(i, false)))
+		acts.add_child(_action("Boss", func(): main.god_goto(i, true)))
+	col.add_child(acts)
 
 	_info = Hud.label("", 12, Hud.COL_MUTED)
 	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_info.custom_minimum_size.x = 220
 	col.add_child(_info)
 	_select_tool("")
+
+
+## Rafraîchit l'interface après une action du panneau
+func _changed() -> void:
+	if combat and combat.dungeon:
+		combat.changed.emit()
+
+
+func refresh() -> void:
+	_changed()
 
 
 func _section(col: VBoxContainer, title: String) -> void:
@@ -120,6 +136,6 @@ func _select_tool(tool: String) -> void:
 		"kill": "Clique sur une unité pour la foudroyer.",
 		"heal": "Clique sur une unité pour la soigner entièrement.",
 		"spawn": "Clique sur une case libre pour y faire apparaître le monstre choisi.",
-	}[tool]
+	}[tool] + "\nLes objets donnés sont attribués après le combat."
 	if combat and combat.dungeon:
 		combat.changed.emit()

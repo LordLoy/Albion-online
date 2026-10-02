@@ -17,9 +17,14 @@ func _ready() -> void:
 	await get_tree().process_frame
 	var c: Combat = main.combat
 	c.speed_factor = 0.0
-	main._clear_screen()
-	main._start(["guerrier", "mage", "rodeur", "clerc"])
+	main.new_run(["guerrier", "mage", "rodeur", "clerc"])
+	main.enter_node(main.run.available_nodes()[0].id)   # premier combat
 	await get_tree().process_frame
+	# Attendre que ce soit au tour d'un héros (les outils sont bloqués pendant le tour des monstres)
+	for k in 500:
+		if not c.busy:
+			break
+		await get_tree().process_frame
 
 	# Invincibilité
 	var h: Unit = c.heroes[0]
@@ -90,20 +95,26 @@ func _ready() -> void:
 	c.set_god_option("free_actions", false)
 	c.set_god_option("control_monsters", false)
 
-	# Monter de niveau
+	# Partie : or, niveau, potions
+	var gold: int = main.run.gold
+	main.run.gold += 100
+	check(main.run.gold == gold + 100, "+100 or")
 	var lvl := h.level
-	c.god_level_up()
-	check(h.level == lvl + 1, "groupe +1 niveau")
+	main.run.gain_xp(Data.LEVEL_XP[main.run.level + 1] - main.run.xp)
+	check(h.level == lvl + 1 and not main.run.queue.is_empty(), "+1 niveau (et un choix de pouvoir en attente)")
+	main.run.queue.clear()
 
-	# Changer de niveau
+	# Aller directement à l'acte 3
 	c.end_hero_turn()
 	for k in 200:
 		if not c.busy:
 			break
 		await get_tree().process_frame
-	main._start_level(3)
+	main.god_goto(2, false)
+	check(main.run.act == 2 and main.screens.is_open(), "aller directement à l'acte 3 (carte affichée)")
+	main.enter_node(main.run.available_nodes()[0].id)
 	await get_tree().process_frame
-	check(c.level_idx == 3, "aller directement au niveau 4")
+	check(c.dungeon.biome == "volcan", "le combat de l'acte 3 se passe dans le volcan")
 
 	# Tuer tous les monstres -> victoire
 	var won := [false]

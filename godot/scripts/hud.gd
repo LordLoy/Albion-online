@@ -21,6 +21,7 @@ const COL_HERO := Color("#5fd38d")
 const COL_MONSTER := Color("#e05050")
 
 var combat: Combat
+var run: RunState
 var level_label: Label
 var round_label: Label
 var tracker: VBoxContainer
@@ -151,8 +152,9 @@ func clear_log() -> void:
 func update_all() -> void:
 	if combat == null:
 		return
-	var lvl: Dictionary = Data.LEVELS[combat.level_idx]
-	level_label.text = "Niveau %d/%d — %s" % [combat.level_idx + 1, Data.LEVELS.size(), lvl.name]
+	if run:
+		level_label.text = "Acte %d/3 — %s · %s   |   Or %d · Niveau %d" % [run.act + 1, Data.ACTS[run.act].name,
+			combat.encounter.get("title", "").get_slice("— ", 1), run.gold, run.level]
 	round_label.text = "Round %d" % combat.round_num
 	_update_tracker()
 	_update_actions()
@@ -186,7 +188,16 @@ func _update_tracker() -> void:
 		var mid := VBoxContainer.new()
 		mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		mid.add_theme_constant_override("separation", 2)
-		mid.add_child(label(u.name, 14))
+		var name_row := HBoxContainer.new()
+		name_row.add_theme_constant_override("separation", 4)
+		name_row.add_child(label(u.name, 14, Color("#c86bff") if not u.elite.is_empty() else (Color("#ff8a65") if u.boss else COL_TEXT)))
+		for st in u.status:
+			var chip := label(Data.STATUS[st].name, 10, Data.STATUS[st].color)
+			chip.tooltip_text = Data.STATUS[st].desc
+			name_row.add_child(chip)
+		if u.shield > 0:
+			name_row.add_child(label("Bouclier %d" % u.shield, 10, Color("#9be8ff")))
+		mid.add_child(name_row)
 		var bar := ProgressBar.new()
 		bar.max_value = u.max_hp
 		bar.value = u.hp
@@ -220,16 +231,22 @@ func _update_actions() -> void:
 	info.add_child(label("PV %d/%d · CA %d · Dépl. %d/%d" % [u.hp, u.max_hp, u.ac, u.moves_left, u.speed], 14, COL_MUTED))
 	info.add_child(label(("● Action  " if not u.action_used else "○ Action  ") + ("◆ Bonus" if not u.bonus_used else "◇ Bonus"), 13, COL_HERO))
 	action_box.add_child(info)
-	for i in u.abilities.size():
-		var ab: Dictionary = u.abilities[i]
+	var list := combat.usable_abilities(u)
+	for i in list.size():
+		var ab: Dictionary = list[i]
 		var b := Button.new()
 		var cd: int = u.cooldowns.get(ab.id, 0)
-		b.text = "%d. %s%s" % [i + 1, ab.name, "\n(recharge %d)" % cd if cd > 0 else ""]
-		b.custom_minimum_size = Vector2(110, 64)
+		var label_text: String = ab.name
+		if ab.get("consumable", false):
+			label_text += " ×%d" % ab.count
+			b.icon = load("res://assets/icons/potion_%s.png" % ab.potion)
+			b.expand_icon = false
+		b.text = "%s%s%s" % ["%d. " % (i + 1) if i < 9 else "", label_text, "\n(recharge %d)" % cd if cd > 0 else ""]
+		b.custom_minimum_size = Vector2(96 if not ab.get("consumable", false) else 120, 64)
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.disabled = not combat.ability_ready(u, ab)
 		b.tooltip_text = "%s\n%s\n%s" % [ab.name, ab.get("desc", ""), _ability_tags(u, ab)]
-		var selected := combat.ability == ab
+		var selected: bool = not combat.ability.is_empty() and combat.ability.id == ab.id
 		b.add_theme_stylebox_override("normal", style(Color("#3d2a22") if selected else COL_PANEL2, Color("#ff8040") if selected else COL_BORDER, 8, 6))
 		b.add_theme_stylebox_override("hover", style(COL_PANEL2, COL_GOLD, 8, 6))
 		b.add_theme_stylebox_override("disabled", style(Color("#1e1b22"), COL_BORDER, 8, 6))
@@ -251,16 +268,18 @@ func _update_actions() -> void:
 
 func _ability_tags(u: Unit, ab: Dictionary) -> String:
 	var tags := PackedStringArray(["Action bonus" if ab.get("bonus", false) else "Action"])
-	if ab.has("range"):
-		tags.append("Contact" if ab.range == 1 else "Portée %d" % ab.range)
+	if ab.get("range", 0) > 0:
+		tags.append("Contact" if ab.range == 1 else "Portée %d" % u.range_of(ab))
+	if ab.get("radius", 0) > 0:
+		tags.append("Zone %d×%d" % [u.radius_of(ab) * 2 + 1, u.radius_of(ab) * 2 + 1])
 	if ab.has("hit"):
 		tags.append("+%d toucher" % (ab.hit + u.hit_bonus()))
 	if ab.has("dmg"):
 		tags.append("%s%s dégâts" % [ab.dmg, ("+%d" % u.dmg_bonus()) if u.dmg_bonus() else ""])
 	if ab.has("heal"):
-		tags.append("%s%s soins" % [ab.heal, ("+%d" % u.dmg_bonus()) if u.dmg_bonus() else ""])
+		tags.append("%s%s soins" % [ab.heal, ("+%d" % u.heal_bonus()) if u.heal_bonus() else ""])
 	if ab.get("cd", 0) > 0:
-		tags.append("Recharge %d" % ab.cd)
+		tags.append("Recharge %d" % u.cooldown_of(ab))
 	return " · ".join(tags)
 
 
@@ -268,10 +287,19 @@ func show_tooltip(u: Unit) -> void:
 	if u == null:
 		tooltip.visible = false
 		return
-	var ab: Dictionary = u.abilities[0] if u.side == "hero" else u.attack
-	var txt := "[b]%s[/b]%s\nPV %d/%d · CA %d · Vitesse %d\n[color=#9a92a3]%s : %s, %s[/color]" % [
-		u.name, ("  niv. %d" % u.level) if u.side == "hero" else "", u.hp, u.max_hp, u.ac, u.speed,
-		ab.name, "contact" if ab.range == 1 else "portée %d" % ab.range, ab.dmg]
+	var ab: Dictionary = u.abilities[0] if not u.abilities.is_empty() else {}
+	var txt := "[b]%s[/b]%s\nPV %d/%d · CA %d · Vitesse %d" % [
+		u.name, ("  niv. %d" % u.level) if u.side == "hero" else "", u.hp, u.max_hp, u.ac, u.speed]
+	if ab.has("dmg"):
+		txt += "\n[color=#9a92a3]%s : %s, %s[/color]" % [ab.name, "contact" if ab.range == 1 else "portée %d" % ab.range, ab.dmg]
+	if u.is_object:
+		txt += "\n[color=#b07dff]Protège la Liche tant qu'il est debout.[/color]"
+	if not u.elite.is_empty():
+		txt += "\n[color=#c86bff]Élite %s : %s[/color]" % [u.elite.name, u.elite.desc]
+	for mech in u.mechanics:
+		txt += "\n[color=#ff8a65]• %s[/color]" % Data.MECHANICS[mech]
+	for st in u.status:
+		txt += "\n[color=#%s]%s (%d)[/color] : %s" % [Data.STATUS[st].color.to_html(false), Data.STATUS[st].name, u.status[st], Data.STATUS[st].desc]
 	var cur := combat.current()
 	if cur and cur.side == "hero" and u.side == "monster":
 		var d := Dungeon.dist(cur.pos, u.pos)
@@ -282,4 +310,4 @@ func show_tooltip(u: Unit) -> void:
 	tooltip.visible = true
 	tooltip.reset_size()
 	var mp := get_viewport().get_mouse_position()
-	tooltip.position = Vector2(minf(mp.x + 18, get_viewport_rect().size.x - SIDE_W - 260), mp.y + 18)
+	tooltip.position = Vector2(minf(mp.x + 18, get_viewport_rect().size.x - SIDE_W - 260), minf(mp.y + 18, get_viewport_rect().size.y - tooltip.size.y - 8))
