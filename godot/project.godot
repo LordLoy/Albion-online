@@ -1,0 +1,28 @@
+; Fichier de configuration du projet Godot (généré, modifiable depuis Projet > Paramètres du projet)
+
+config_version=5
+
+[application]
+
+config/name="Donjon Tactique"
+config/description="Jeu de rôle tactique au tour par tour"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon="res://assets/sprites/guerrier.png"
+
+[autoload]
+
+Data="*res://scripts/data.gd"
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

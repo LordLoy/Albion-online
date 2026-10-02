@@ -3,6 +3,8 @@
 Roguelike tactique au tour par tour dans le navigateur, en pixel art, inspiré des tables virtuelles comme Foundry VTT
 (plateau en cases, initiative, journal des jets de dés) et de *Slay the Spire* (carte de parcours à embranchements).
 
+> 🎮 Une version **Godot 4** de la base du jeu se trouve dans le dossier [`godot/`](godot/README.md).
+
 ## Lancer le jeu
 
 Aucune installation : ouvre simplement `index.html` dans ton navigateur.
