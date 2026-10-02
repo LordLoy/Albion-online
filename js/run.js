@@ -313,9 +313,9 @@ function showRewards(r, kind) {
   render();
 }
 
-function itemCard(k, act, arg, extra = '') {
+function itemCard(k, act, arg, extra = '', disabled = false) {
   const it = ITEMS[k];
-  return `<button class="item r${it.rarity}" data-act="${act}" data-arg="${arg}">
+  return `<button class="item r${it.rarity}" data-act="${act}" data-arg="${arg}" ${disabled ? 'disabled' : ''}>
     <span class="it-icon">${it.icon}</span><b>${it.name}</b><small>${it.desc}</small>${extra}</button>`;
 }
 
@@ -367,12 +367,12 @@ function showShop(stock) {
     ${statusBar()}
     <h3>Objets</h3>
     <div class="items">${stock.items.map((s, i) => s.sold ? '<div class="item sold">Vendu</div>' :
-      itemCard(s.k, 'buyItem', i, `<span class="price ${RUN.gold < s.price ? 'cant' : ''}">🪙 ${s.price}</span>`)).join('')}</div>
+      itemCard(s.k, 'buyItem', i, `<span class="price ${RUN.gold < s.price ? 'cant' : ''}">🪙 ${s.price}</span>`, RUN.gold < s.price)).join('')}</div>
     <h3>Potions <small class="muted">(${RUN.potions.length}/${MAX_POTIONS})</small></h3>
     <div class="items">${stock.potions.map((s, i) => s.sold ? '<div class="item sold">Vendu</div>' : `
-      <button class="item" data-act="buyPot" data-arg="${i}"><span class="it-icon">${POTIONS[s.k].icon}</span><b>${POTIONS[s.k].name}</b>
+      <button class="item" data-act="buyPot" data-arg="${i}" ${RUN.gold < s.price || RUN.potions.length >= MAX_POTIONS ? 'disabled' : ''}><span class="it-icon">${POTIONS[s.k].icon}</span><b>${POTIONS[s.k].name}</b>
       <small>${POTIONS[s.k].desc}</small><span class="price ${RUN.gold < s.price ? 'cant' : ''}">🪙 ${s.price}</span></button>`).join('')}
-      <button class="item" data-act="heal" ${stock.healUsed ? 'disabled' : ''}><span class="it-icon">⛑️</span><b>Soins</b>
+      <button class="item" data-act="heal" ${stock.healUsed || RUN.gold < healPrice ? 'disabled' : ''}><span class="it-icon">⛑️</span><b>Soins</b>
       <small>Soigne 50 % des PV de chaque héros.</small><span class="price ${RUN.gold < healPrice ? 'cant' : ''}">🪙 ${healPrice}</span></button>
     </div>
     <button class="primary" data-act="leave">Partir ▶</button></div>`,
