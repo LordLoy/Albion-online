@@ -162,7 +162,7 @@ func update_all() -> void:
 
 func _sprite_rect(key: String, size: int) -> TextureRect:
 	var t := TextureRect.new()
-	t.texture = load("res://assets/sprites/%s.png" % key)
+	t.texture = Assets.sprite(key)
 	t.custom_minimum_size = Vector2(size, size)
 	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

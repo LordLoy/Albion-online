@@ -26,7 +26,6 @@ var hover := Vector2i(-1, -1)
 var sprites := {}                       ## id d'unité -> Sprite2D
 var effects: Array = []                 ## projectiles et explosions en cours
 
-var _tex := {}
 var _units_layer := Node2D.new()
 var _lights_layer := Node2D.new()
 var _hero_lights := {}                  ## id d'héros -> PointLight2D
@@ -42,10 +41,6 @@ var _base_pos := Vector2.ZERO
 
 
 func _ready() -> void:
-	for f in DirAccess.get_files_at("res://assets/tiles/"):
-		f = f.trim_suffix(".import").trim_suffix(".remap")   # noms dans un jeu exporté
-		if f.ends_with(".png"):
-			_tex[f.get_basename()] = load("res://assets/tiles/" + f)
 	add_child(_ambient)
 	add_child(_units_layer)
 	add_child(_lights_layer)
@@ -82,7 +77,9 @@ func setup(c: Combat) -> void:
 
 func _make_sprite(u: Unit) -> Sprite2D:
 	var s := Sprite2D.new()
-	s.texture = load("res://assets/sprites/%s.png" % u.sprite)
+	var frames := Assets.sprite_frames(u.sprite)   # remplaçable via assets_perso/
+	s.texture = frames[0]
+	s.set_meta("frames", frames)
 	_units_layer.add_child(s)
 	sprites[u.id] = s
 	return s
@@ -114,13 +111,23 @@ func cell_center(c: Vector2i) -> Vector2:
 	return (Vector2(c) + Vector2(0.5, 0.5)) * cell
 
 
+## Échelle d'un jeton : son image (quelle que soit sa taille) tient dans une case (plus grand pour les boss)
 func _scale_for(u: Unit) -> float:
-	return BOSS_SCALE.get(u.key, 1.0) * cell / TILE_PX
+	var s: Sprite2D = sprites.get(u.id)
+	var px := TILE_PX
+	if s and s.texture:
+		px = maxi(s.texture.get_width(), s.texture.get_height())
+	return BOSS_SCALE.get(u.key, 1.0) * cell / px
+
+
+func _sprite_height(u: Unit) -> float:
+	var s: Sprite2D = sprites.get(u.id)
+	return s.texture.get_height() if s and s.texture else TILE_PX
 
 
 func _sprite_pos(u: Unit) -> Vector2:
 	var k := _scale_for(u)
-	return cell_center(u.pos) - Vector2(0, (k * TILE_PX - cell) / 2.0 + 2)
+	return cell_center(u.pos) - Vector2(0, (k * _sprite_height(u) - cell) / 2.0 + 2)
 
 
 ## Place immédiatement le jeton d'une unité sur sa case.
@@ -355,6 +362,9 @@ func _process(delta: float) -> void:
 			if s == null:
 				continue
 			s.offset.y = -0.5 + 0.5 * sin(_time * 3.0 + u.id) if u.hp > 0 else 0.0
+			var frames: Array = s.get_meta("frames", [])
+			if frames.size() > 1:   # animation (images personnelles)
+				s.texture = frames[int(_time * 6.0 + u.id) % frames.size()]
 			if u.is_object:
 				s.self_modulate = Color(1.2 + 0.3 * sin(_time * 4.0), 1.0, 1.3 + 0.3 * sin(_time * 4.0))
 			if _hero_lights.has(u.id):
@@ -375,7 +385,7 @@ func _draw() -> void:
 			var r := Rect2(Vector2(c) * cell, Vector2(cell, cell))
 			var v := m.deco[i]
 			for tex in _tile_textures(m, c, m.tiles[i], v, frame):
-				draw_texture_rect(_tex[tex], r, false)
+				draw_texture_rect(Assets.tile(tex), r, false)
 			if m.walkable(c) and m.blocks_sight(c - Vector2i(0, 1)):
 				draw_rect(Rect2(r.position, Vector2(cell, cell * 0.18)), Color(0, 0, 0, 0.3))
 	# Ombres des unités
@@ -530,7 +540,7 @@ func _draw_bars() -> void:
 		var base := Vector2(s.position.x, cell_center(u.pos).y)
 		if u == active and not combat.over:
 			_draw_ellipse(base + Vector2(0, cell * 0.38), cell * 0.44, cell * 0.15, Color(1, 0.85, 0.42, 0.6 + 0.4 * sin(_time * 6)))
-		var top := s.position.y - s.scale.y * TILE_PX / 2.0 - 4
+		var top := s.position.y - s.scale.y * s.texture.get_height() / 2.0 - 4
 		var bw := cell * (0.75 if not u.boss else 1.3)
 		var bar := Rect2(Vector2(base.x - bw / 2, top - 5), Vector2(bw, 5))
 		_overlay.draw_rect(bar.grow(1), Color(0, 0, 0, 0.8))

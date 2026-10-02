@@ -1,0 +1,18 @@
+Dossier d'images personnelles (ignoré par Git : il ne part jamais sur GitHub).
+
+Une image ici remplace l'image du jeu qui porte le même nom :
+
+  sprites/loup.png            → remplace le loup
+  sprites/loup/               → un DOSSIER d'images (loup_0.png, loup_1.png…) = animation jouée en boucle
+  tiles/floor_0.png           → remplace une tuile de sol de la crypte
+
+Noms des sprites : guerrier, mage, rodeur, clerc, voleur, gobelin, archer, squelette, loup, orc,
+chaman, araignee, spectre, diablotin, elementaire, cultiste, salamandre, mimique, phylactere,
+ogre, liche, dragon.
+
+Noms des tuiles : voir le dossier assets/tiles/ (floor_0…3, wall_top, wall_face_0…1, water_0…1,
+grass_0…3, tree, bush, bridge, river_0…1, basalt_0…3, rock_top, rock_face_0…1, ash, lava_0…1, rubble).
+
+Les images peuvent avoir n'importe quelle taille : les marges transparentes sont rognées
+et le jeu les redimensionne pour tenir dans une case. Pour revenir aux images d'origine,
+il suffit de supprimer (ou renommer) le fichier ou le dossier.

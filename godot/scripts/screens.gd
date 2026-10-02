@@ -88,7 +88,9 @@ func icon(path: String, size := 32) -> TextureRect:
 
 
 func sprite(key: String, size := 48) -> TextureRect:
-	return icon("res://assets/sprites/%s.png" % key, size)
+	var t := icon("res://assets/sprites/%s.png" % key, size)
+	t.texture = Assets.sprite(key)   # remplaçable via assets_perso/
+	return t
 
 
 func item_icon_path(k: String) -> String:

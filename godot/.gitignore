@@ -1,2 +1,6 @@
 # Dossier de cache généré par Godot (recréé automatiquement)
 .godot/
+
+# Images personnelles : restent sur ton ordinateur, jamais envoyées sur GitHub
+assets_perso/*
+!assets_perso/LISEZMOI.txt

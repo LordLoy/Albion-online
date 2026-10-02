@@ -50,6 +50,17 @@ Appuie sur **F1** pendant un combat pour ouvrir le panneau de test :
 - **Combat** : tuer tous les monstres, soigner le groupe
 - **Partie** : +100 or, +1 niveau, objet au hasard, toutes les potions, aller directement à un acte ou à son boss
 
+## Utiliser tes propres images (assets_perso)
+
+Dépose tes images dans `godot/assets_perso/` (ce dossier est **ignoré par Git**, il reste sur ton ordinateur) :
+
+- `assets_perso/sprites/loup.png` remplace le loup ;
+- `assets_perso/sprites/loup/` (un dossier d'images numérotées) devient une **animation** jouée en boucle ;
+- `assets_perso/tiles/floor_0.png` remplace une tuile.
+
+Taille libre : les marges transparentes sont rognées et l'image est mise à l'échelle d'une case.
+La liste des noms est dans `assets_perso/LISEZMOI.txt`.
+
 ## Comment le code est organisé
 
 | Fichier | Rôle |
@@ -64,6 +75,7 @@ Appuie sur **F1** pendant un combat pour ouvrir le panneau de test :
 | `scripts/board.gd` | Le plateau : dessin des cases, des jetons, des effets, la souris |
 | `scripts/hud.gd` | L'interface : initiative, journal, barre d'actions |
 | `scripts/god_panel.gd` | Le panneau du mode dieu (les outils eux-mêmes sont en bas de `combat.gd`) |
+| `scripts/assets.gd` | Chargement des images (avec remplacement par `assets_perso/`) |
 | `scripts/main.gd` | Le chef d'orchestre : enchaîne carte, combats et écrans |
 | `assets/sprites/` | Les personnages (images 16×16, remplaçables par tes propres images) |
 | `assets/tiles/` | Les tuiles des 3 biomes (16×16) |
